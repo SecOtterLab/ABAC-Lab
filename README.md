@@ -27,11 +27,11 @@ ABAC Lab is an open-source platform designed to support researchers and policy a
 # Datasets Overview
 ABAC Lab includes a curated set of sample ABAC policy datasets to support analysis and benchmarking. The **University, Workforce, Healthcare, Project Management,** and **Edocument** datasets each represent different real-world access control scenarios and demonstrate the flexibility of ABAC policies across domains. Each dataset includes attribute definitions, access rules, and sample entries to facilitate exploration and experimentation. Please locate to the DATASETS folder for each dataset file and description. The description of the dataset files is available in file [.abac Files Description](DATASETS/README.md). Please refer to this format for the contributions of new datasets. The list of descriptions are also available in the following list: 
 
-- [University](DATASETS/university/README.md)
-- [Workforce](DATASETS/workforce/README.md)
-- [Healthcare](DATASETS/healthcare/README.md)
-- [Project Management](DATASETS/project-management/README.md)
-- [Edocument](DATASETS/edocument/README.md)
+- [University](DATASETS/university/)
+- [Workforce](DATASETS/workforce/)
+- [Healthcare](DATASETS/healthcare/)
+- [Project Management](DATASETS/project-management/)
+- [Edocument](DATASETS/edocument/)
 
 # ABAC Lab - Installation Guide
 ## Script Installation by OS
