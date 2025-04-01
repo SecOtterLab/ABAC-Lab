@@ -33,8 +33,8 @@ ABAC Lab includes a curated set of sample ABAC policy datasets to support analys
 - [Project Management](DATASETS/project-management/)
 - [Edocument](DATASETS/edocument/)
 
-# ABAC Lab - Installation Guide
-## Script Installation by OS
+# ABAC Lab - Build Guide
+## Build Script by OS
 
 **Note:** ABAC Lab is an open-source project. If the provided installation scripts do not work as expected on your system, you are welcome to modify them to better fit your environment. Each script includes step-by-step instructions to help guide you through the installation process. Community contributions and improvements are always welcome and appreciated.
 
@@ -68,7 +68,7 @@ After successful installation, you should see the ABAC Lab application on your d
 **IMPORTANT**: In order to rerun the application, you will have to execute `./mac_run_app.sh` within the same project folder. You don't have to rerun `mac_install.sh` since the installation will be completed. 
 Mac users will NOT have a shortcut created like Windows or Linux. Lastly, Qt Platform is set to "cocoa" it may take a while for it to open the application.
 
-## Manual Installation
+## Manual Build
 
 **Note:** All required dependencies for the ABAC Lab application are listed in the [requirements.txt](./requirements.txt) file. You can refer to it to review or manually install specific packages if needed.
 
