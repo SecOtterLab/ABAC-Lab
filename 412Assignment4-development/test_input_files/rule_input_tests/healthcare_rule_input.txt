@@ -1,2 +1,0 @@
-rule(; type [ {HR}; {addNote read}; ward=ward)
-rule(; type [ {HR}; {addNote}; teams ] treatingTeam)

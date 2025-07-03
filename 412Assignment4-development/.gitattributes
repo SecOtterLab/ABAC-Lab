@@ -1,3 +1,0 @@
-# Ensure all shell and PowerShell scripts use LF (macOS/Linux compatible)
-*.sh text eol=lf
-*.ps1 text eol=lf

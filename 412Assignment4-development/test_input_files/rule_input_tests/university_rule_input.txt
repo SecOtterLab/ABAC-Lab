@@ -1,1 +1,0 @@
-rule(; type [ {application}; {checkStatus}; uid=student)
