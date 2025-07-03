@@ -2,11 +2,18 @@ from PyQt5.QtWidgets import QLabel, QSizePolicy, QHBoxLayout, QComboBox, QMessag
 from PyQt5.QtCore import Qt
 import os
 
+def precompute_all_stats(app):
+    """
+    Precomputes statistics for all uploaded ABAC files and stores them in app.abac_stats
+    """
+    app.abac_stats = {}  # Dictionary to store precomputed stats
+    for abac_path in app.abac_data.keys():
+        app.abac_stats[abac_path] = get_abac_stats(app, abac_path)
 
 def show_stats(app):
     """
     Displays the statistics for the uploaded ABAC files.
-    Uses a dropdown menu to switch between files.
+    Uses precomputed stats for quick display.
     """
     # Clear previous stats from the stats container
     while app.stats_container_layout.count():
@@ -57,7 +64,6 @@ def show_stats(app):
         app.current_abac_path = file_paths[0]
         display_stats(app, file_paths[0])
 
-
 def get_abac_stats(app, abac_path):
     """
     Compute statistics from the ABAC data.
@@ -107,15 +113,15 @@ def get_abac_stats(app, abac_path):
     }
     return stats
 
-
 def display_stats(app, abac_path):
     """
-    Displays the statistics for the specified ABAC file.
+    Displays the precomputed statistics for the specified ABAC file.
     """
     # Store the current ABAC path for saving
     app.current_abac_path = abac_path
 
-    stats = get_abac_stats(app, abac_path)
+    # Get precomputed stats
+    stats = app.abac_stats.get(abac_path, {})
 
     # Clear previous stats content (except dropdown and Save button)
     while app.stats_container_layout.count() > 1:
@@ -162,8 +168,9 @@ def save_abac_stats(app, abac_path):
     if not app.current_abac_path:
         QMessageBox.warning(app, "Warning", "Please upload an ABAC file first.")
         return
-    # Get the statistics for the selected file
-    stats = get_abac_stats(app, abac_path)
+    
+    # Get the precomputed statistics
+    stats = app.abac_stats.get(abac_path, {})
     stats_text = "\n".join(f"{key}: {value}" for key, value in stats.items())
 
     # Extract the ABAC file name from the path

@@ -8,9 +8,61 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import os
 
+def initialize_bar_graph_cache(app):
+    """
+    Initializes the bar graph cache in the app object
+    """
+    app.bar_graph_cache = {}
+
+def precompute_bar_graphs(app):
+    """
+    Precomputes bar graphs for all uploaded ABAC files
+    """
+    if not hasattr(app, 'bar_graph_cache'):
+        initialize_bar_graph_cache(app)
+    
+    for file_path in app.abac_data.keys():
+        if file_path not in app.bar_graph_cache:
+            app.bar_graph_cache[file_path] = generate_bar_graph_data(app, file_path)
+
+def generate_bar_graph_data(app, file_path):
+    """
+    Generates and returns the bar graph data without creating the visualization
+    """
+    user_mgr, res_mgr, rule_mgr = app.abac_data[file_path]
+    bar_data = {}
+    all_actions = set()
+    
+    # Collect all actions from all rules
+    for rule in rule_mgr.rules:
+        all_actions.update(rule.acts)
+    
+    # Calculate access counts for each resource
+    for rid, resource in res_mgr.resources.items():
+        resource_name = resource.get_name()
+        bar_data[resource_name] = 0
+        for uid, user in user_mgr.users.items():
+            for rule in rule_mgr.rules:
+                for action in all_actions:
+                    if rule.evaluate(user, resource, action):
+                        bar_data[resource_name] += 1
+    
+    # Sort the data
+    sorted_data = dict(sorted(bar_data.items(), key=lambda item: item[1], reverse=True))
+    
+    # Prepare top and least accessed resources
+    top_10 = list(sorted_data.items())[:10]
+    least_10 = list(sorted_data.items())[-10:]
+    
+    return {
+        'top_10': top_10,
+        'least_10': least_10,
+        'file_name': os.path.basename(file_path)
+    }
+
 def show_bar_graph(app):
     """
-    Displays the bar graph interface for visualizing resource access.
+    Displays the bar graph interface using cached data
     """
     if not app.abac_data:
         QMessageBox.warning(app, "Warning", "Please upload an ABAC file first.")
@@ -61,9 +113,8 @@ def show_bar_graph(app):
             background-color: #003366;
         }
     """)
-
     back_btn.clicked.connect(app.show_page2)
-    top_layout.addWidget(back_btn, alignment=Qt.AlignLeft)  # Align Back button to the left
+    top_layout.addWidget(back_btn, alignment=Qt.AlignLeft)
 
     # Add a dropdown menu for file selection, centered
     if len(app.abac_data) > 1:
@@ -74,19 +125,19 @@ def show_bar_graph(app):
         dropdown_layout.addWidget(policy_label)
 
         file_dropdown = QComboBox()
-        file_dropdown.setFixedWidth(200)  # Set a fixed width for the dropdown
+        file_dropdown.setFixedWidth(200)
         file_dropdown.setStyleSheet("font-size: 16px; color: black; border: 2px solid black")
         for file_path in app.abac_data.keys():
             file_dropdown.addItem(os.path.basename(file_path))
-        file_dropdown.currentIndexChanged.connect(lambda index: display_bar_graph(app, list(app.abac_data.keys())[index]))
+        file_dropdown.currentIndexChanged.connect(
+            lambda index: display_bar_graph_from_cache(app, list(app.abac_data.keys())[index])
+        )
         dropdown_layout.addWidget(file_dropdown)
         
-        # Add the dropdown to the top layout with centering
-        top_layout.addStretch(5)  # Add stretchable space on the left
-        top_layout.addLayout(dropdown_layout)  # Add dropdown
-        top_layout.addStretch(6)  # Add stretchable space on the right
+        top_layout.addStretch(5)
+        top_layout.addLayout(dropdown_layout)
+        top_layout.addStretch(6)
 
-    # Add the top layout to the container layout
     container_layout.addLayout(top_layout)
 
     # Create a widget for the bar graph display
@@ -94,49 +145,43 @@ def show_bar_graph(app):
     app.bar_graph_display_layout = QVBoxLayout(app.bar_graph_display)
     container_layout.addWidget(app.bar_graph_display)
 
-    # Set the layout for the container
     container.setLayout(container_layout)
-
-    # Add the container to the results layout
     app.results_layout.addWidget(container)
-
-    # Show the scrollable area
     app.scroll_area.show()
 
     # Display the bar graph for the first file
     if app.current_abac_path and len(app.abac_data) > 1:
         file_dropdown.setCurrentIndex(app.uploaded_files.index(app.current_abac_path))
-        display_bar_graph(app, app.current_abac_path)
+        display_bar_graph_from_cache(app, app.current_abac_path)
     else:
         first_file = list(app.abac_data.keys())[0]
-        display_bar_graph(app, first_file)
+        display_bar_graph_from_cache(app, first_file)
 
-def generate_bar_graph_widget(app, file_path):
+def display_bar_graph_from_cache(app, file_path):
     """
-    Generates a bar graph widget for the given ABAC file.
+    Displays the bar graph using cached data
     """
-    user_mgr, res_mgr, rule_mgr = app.abac_data[file_path]
-    barData = {}
-    all_actions = set()
-    for rule in rule_mgr.rules:
-        all_actions.update(rule.acts)
-    for rid, resource in res_mgr.resources.items():
-        resourceName = resource.get_name()
-        barData[resourceName] = 0
-        for uid, user in user_mgr.users.items():
-            for rule in rule_mgr.rules:
-                for action in all_actions:
-                    if rule.evaluate(user, resource, action):
-                        barData[resourceName] += 1
-    sortedBarData = dict(sorted(barData.items(), key=lambda item: item[1], reverse=True))
-    top_10_resources = list(sortedBarData.items())[:10]
-    least_10_resources = list(sortedBarData.items())[-10:]
+    # Clear previous display
+    while app.bar_graph_display_layout.count():
+        item = app.bar_graph_display_layout.takeAt(0)
+        widget = item.widget()
+        if widget is not None:
+            widget.deleteLater()
+
+    # Get cached data
+    cached_data = app.bar_graph_cache.get(file_path)
+    if not cached_data:
+        # If not in cache (shouldn't happen if precomputed), compute now
+        cached_data = generate_bar_graph_data(app, file_path)
+        app.bar_graph_cache[file_path] = cached_data
+
+    # Create the figure from cached data
     fig, axes = plt.subplots(1, 2, figsize=(14, 8))
     fig.subplots_adjust(wspace=0.4)
     
     # Top 10 Graph
-    if top_10_resources:
-        resources_top, counts_top = zip(*top_10_resources)
+    if cached_data['top_10']:
+        resources_top, counts_top = zip(*cached_data['top_10'])
         unique_top = sorted(set(counts_top), reverse=True)
         colors_top = sns.color_palette("Blues_r", len(unique_top))
         color_map_top = {val: colors_top[i] for i, val in enumerate(unique_top)}
@@ -145,13 +190,13 @@ def generate_bar_graph_widget(app, file_path):
                     ax=axes[0], palette=bar_colors_top)
         axes[0].set_xlabel("Number of Subjects With Access")
         axes[0].set_ylabel("Resources")
-        axes[0].set_title(f"Top 10 Resources with Highest Access for {os.path.basename(file_path)}")
+        axes[0].set_title(f"Top 10 Resources with Highest Access for {cached_data['file_name']}")
     else:
         axes[0].text(0.5, 0.5, "No Data", horizontalalignment='center', verticalalignment='center')
     
     # Least 10 Graph
-    if least_10_resources:
-        resources_least, counts_least = zip(*least_10_resources)
+    if cached_data['least_10']:
+        resources_least, counts_least = zip(*cached_data['least_10'])
         unique_least = sorted(set(counts_least), reverse=True)
         colors_least = sns.color_palette("Blues_r", len(unique_least))
         color_map_least = {val: colors_least[i] for i, val in enumerate(unique_least)}
@@ -160,12 +205,14 @@ def generate_bar_graph_widget(app, file_path):
                     ax=axes[1], palette=bar_colors_least)
         axes[1].set_xlabel("Number of Subjects With Access")
         axes[1].set_ylabel("Resources")
-        axes[1].set_title(f"Top 10 Resources with Least Access for {os.path.basename(file_path)}")
+        axes[1].set_title(f"Top 10 Resources with Least Access for {cached_data['file_name']}")
         axes[1].xaxis.set_major_locator(plt.MaxNLocator(integer=True))
     else:
         axes[1].text(0.5, 0.5, "No Data", horizontalalignment='center', verticalalignment='center')
     
     plt.tight_layout()
+    
+    # Add hover functionality
     annotations = {}
     for ax in axes:
         ann = ax.annotate("", xy=(0, 0), xytext=(20, 20),
@@ -203,33 +250,9 @@ def generate_bar_graph_widget(app, file_path):
         fig.canvas.draw_idle()
 
     fig.canvas.mpl_connect("motion_notify_event", on_hover)
+    
+    # Create and add the canvas to the layout
     canvas = FigureCanvas(fig)
-    return canvas
-
-def visualizeBar(app, ax, data, title):
-    """
-    Visualizes the bar graph on the given axes.
-    """
-    if data:
-        resources, accessCount = zip(*data)
-        accessCount = list(map(float, accessCount))
-        sns.barplot(x=accessCount, y=resources, ax=ax, palette="Blues_r")
-        ax.set_xlabel("Number of Subjects")
-        ax.set_ylabel("Resources")
-        ax.set_title(title)
-    else:
-        ax.text(0.5, 0.5, "No Data", horizontalalignment='center', verticalalignment='center')
-
-def display_bar_graph(app, file_path):
-    """
-    Displays the bar graph for the given file.
-    """
-    while app.bar_graph_display_layout.count():
-        item = app.bar_graph_display_layout.takeAt(0)
-        widget = item.widget()
-        if widget is not None:
-            widget.deleteLater()
-    canvas = generate_bar_graph_widget(app, file_path)
     nav_toolbar = NavigationToolbar(canvas, app)
     nav_toolbar.setStyleSheet("background-color: gray; color: white;")
     app.bar_graph_display_layout.addWidget(nav_toolbar)

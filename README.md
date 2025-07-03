@@ -1,5 +1,13 @@
 ![ABAC Header](res/abac-header.png)
 
+
+## 📄 Research & Publication
+
+ABAC Lab is built on research accepted to [SACMAT 2025](https://www.sacmat.org/2025/index.php), the ACM Symposium on Access Control Models and Technologies.
+
+Read the full paper on arXiv:  
+[Access the ABAC Lab Research Publication](https://arxiv.org/abs/2505.08209)
+
 ## ABAC Lab Application Demo
 
 Check out the full walkthrough and demonstration of the ABAC Lab application on YouTube:  
@@ -13,7 +21,7 @@ Check out the full walkthrough and demonstration of the ABAC Lab application on 
   - [Healthcare](DATASETS/healthcare/)
   - [Project Management](DATASETS/project-management/)
   - [Edocument](DATASETS/edocument/)
-- [Script Installation by OS](#script-installation-by-os)
+- [Script Building by OS](#script-building-by-os)
   - [Windows](#windows)
   - [Linux](#linux)
   - [MacOS](#macos)
@@ -33,8 +41,9 @@ ABAC Lab includes a curated set of sample ABAC policy datasets to support analys
 - [Project Management](DATASETS/project-management/)
 - [Edocument](DATASETS/edocument/)
 
-# ABAC Lab - Installation Guide
-## Script Installation by OS
+
+# ABAC Lab - Building Guide
+## Script Building by OS
 
 **Note:** ABAC Lab is an open-source project. If the provided installation scripts do not work as expected on your system, you are welcome to modify them to better fit your environment. Each script includes step-by-step instructions to help guide you through the installation process. Community contributions and improvements are always welcome and appreciated.
 

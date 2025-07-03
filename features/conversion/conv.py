@@ -1,10 +1,16 @@
 import re
 import csv
 import os
+import sys
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import (
     QWidget, QLabel, QHBoxLayout, QFileDialog, QMessageBox
 )
+
+def resource_path(relative_path):
+    """ Get absolute path to resource, works for dev and for PyInstaller """
+    base_path = getattr(sys, '_MEIPASS', os.path.abspath("."))
+    return os.path.join(base_path, relative_path)
 
 def extract_attributes(lines):
     """
@@ -167,10 +173,11 @@ class SingleFileUpload(QWidget):
         self.label.setAlignment(Qt.AlignCenter)
         self.label.setWordWrap(True)
         self.label.setStyleSheet("color: black;")
+        image_upload = resource_path("res/upload_b.png")
         self.label.setText(
-            """
+            f"""
             <div style="text-align: center;">
-                <img src='res/upload_b.png' width='50' height='50'><br>
+                <img src='{image_upload}' width='50' height='50'><br>
                 <span style="font-size: 24px;">Upload File</span><br>
                 <span style="font-size: 16px;">Click to browse or drag & drop a file here</span>
             </div>

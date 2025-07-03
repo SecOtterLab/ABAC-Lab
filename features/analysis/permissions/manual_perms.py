@@ -2,8 +2,10 @@ from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QScrollArea, QGridLayout, QMessageBox, QSizePolicy, QCompleter, QComboBox, QLineEdit, QFileDialog
 )
 from PyQt5.QtCore import Qt
+from PyQt5.QtGui import QIntValidator
 import os
 import re
+import time
 
 def show_manual_check(app):
     """
@@ -158,7 +160,7 @@ def show_manual_check(app):
 def manual_check_search(self):
     """
     Performs a manual check for permissions based on the user, resource, or action inputs.
-    Ensures the user either searches with all three fields or only one field.
+    Implements pagination to display results in smaller chunks.
     """
     # Ensure a file is selected
     if not hasattr(self, 'current_manual_abac') or not self.current_manual_abac:
@@ -171,13 +173,13 @@ def manual_check_search(self):
     action_query = self.action_input.text().strip()
 
     # Count the number of fields filled
-    filled_fields = sum([
+    self.filled_fields = sum([
         1 if user_query else 0,
         1 if resource_query else 0,
         1 if action_query else 0
     ])
 
-    if filled_fields == 0:
+    if self.filled_fields == 0:
         QMessageBox.warning(self, "Warning", "Please fill in at least one field (user, resource, or action).")
         return
 
@@ -217,8 +219,8 @@ def manual_check_search(self):
     resources = [resource for resource in res_mgr.resources.keys() if not resource_query or resource == resource_query]
 
     # Evaluate permissions for the filtered combinations
-    results = []
-    permit_count = 0  # Track the number of permits
+    manual_results = []
+    self.permit_count = 0
     for user_name in users:
         user_obj = user_mgr.users[user_name]
         for resource_name in resources:
@@ -229,151 +231,366 @@ def manual_check_search(self):
                     if rule.evaluate(user_obj, resource_obj, action):
                         permitted = True
                         break
-
                 # Only include results with 'Permit' if 1 or 2 fields are used for the search
-                if filled_fields in [1, 2]:
+                if self.filled_fields in [1, 2]:
                     if permitted:
-                        results.append(f"User: {user_name}, Resource: {resource_name}, Action: {action} -> Permit")
-                        permit_count += 1  # Increment permit count
+                        manual_results.append(f"User: {user_name}, Resource: {resource_name}, Action: {action} -> Permit")
+                        self.permit_count += 1  # Increment permit count
                 else:
-                    results.append(f"User: {user_name}, Resource: {resource_name}, Action: {action} -> {'Permit' if permitted else 'Deny'}")
+                        manual_results.append(f"User: {user_name}, Resource: {resource_name}, Action: {action} -> {'Permit' if permitted else 'Deny'}")
+          
+    # Store results and initialize pagination
+    self.manual_results = manual_results
+    self.manual_results_per_page = 100
+    self.manual_current_page = 1
+    self.manual_total_pages = (len(manual_results) + self.manual_results_per_page - 1) // self.manual_results_per_page
 
+    # Render the first page
+    manual_render_results_page(self)
+
+def manual_render_results_page(self):
+    """
+    Renders the current page of results for the manual check feature.
+    Hides pagination controls if there's only one page of results.
+    """
     # Clear previous results
     self.clear_results_container()
 
-    # ------------------------
-    # **Main Container**: Holds top bar, results, and bottom bar
+    # Log the start time for rendering
+    rendering_start_time = time.time()
+    print(f"Rendering started at: {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(rendering_start_time))}")
+
+    # Get the results for the current page
+    start_index = (self.manual_current_page - 1) * self.manual_results_per_page
+    end_index = min(start_index + self.manual_results_per_page, len(self.manual_results))
+    page_results = self.manual_results[start_index:end_index]
+
+    # Create the main container
     main_container = QWidget()
     main_container.setStyleSheet("background-color: white;")
     main_layout = QVBoxLayout(main_container)
 
-    # **Top Bar (Label)**
-    top_bar = QWidget()
-    top_bar_layout = QHBoxLayout(top_bar)
-    top_bar_layout.addStretch()
-
-    results_label = QLabel("Permissions Results:")
-    results_label.setStyleSheet("font-size: 18px; font-weight: bold; color: black;")
-    top_bar_layout.addWidget(results_label)
-
-    top_bar_layout.addStretch()
-    main_layout.addWidget(top_bar)  # Add top bar inside the main container
-
-    # ------------------------
-    # **Results Container** (For Scroll Area)
+    # Results container
     results_container = QWidget()
     results_layout = QGridLayout(results_container)
 
-    # If no permits found for 1 or 2 field search, display a message
-    if filled_fields in [1, 2] and permit_count == 0:
-        no_permits_label = QLabel("No Permits Found")
-        no_permits_label.setStyleSheet("""
-            font-size: 20px;
-            font-weight: bold;
-            color: red;
-        """)
-        no_permits_label.setAlignment(Qt.AlignCenter)  # Center-align the text
-        results_layout.addWidget(no_permits_label, 0, 0, 1, 2)  # Span across two columns
-    else:
-        # Display the results in a grid
-        for index, result in enumerate(results):
-            result_label = QLabel(result)
-            result_label.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
-            result_label.setMaximumHeight(80)
-            result_label.setWordWrap(True)
-            result_label.setTextInteractionFlags(Qt.TextSelectableByMouse)
+    # Display the results in a grid
+    for index, result in enumerate(page_results):
+        result_label = QLabel(result)
+        result_label.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
+        result_label.setMaximumHeight(80)
+        result_label.setWordWrap(True)
+        result_label.setTextInteractionFlags(Qt.TextSelectableByMouse)
 
-            # Apply styling based on Permit/Deny
-            if "Permit" in result:
-                result_label.setStyleSheet("""
-                    font-size: 20px;
-                    font-weight: bold;
-                    padding: 10px;
-                    margin: 5px;
-                    border-radius: 10px;
-                    color: black;
-                    background-color: rgba(144, 238, 144, 150);
-                """)
-            elif "Deny" in result:
-                result_label.setStyleSheet("""
-                    font-size: 20px;
-                    font-weight: bold;
-                    padding: 10px;
-                    margin: 5px;
-                    border-radius: 10px;
-                    color: black;
-                    background-color: rgba(255, 182, 193, 150);
-                """)
+        # Apply styling based on Permit/Deny
+        if "Permit" in result:
+            result_label.setStyleSheet("""
+                font-size: 20px;
+                font-weight: bold;
+                padding: 10px;
+                margin: 5px;
+                border-radius: 10px;
+                color: black;
+                background-color: rgba(144, 238, 144, 150);
+            """)
+        elif "Deny" in result:
+            result_label.setStyleSheet("""
+                font-size: 20px;
+                font-weight: bold;
+                padding: 10px;
+                margin: 5px;
+                border-radius: 10px;
+                color: black;
+                background-color: rgba(255, 182, 193, 150);
+            """)
 
-            row = index // 2  # Two columns per row
-            col = index % 2
-            results_layout.addWidget(result_label, row, col)
+        row = index // 2  # Two columns per row
+        col = index % 2
+        results_layout.addWidget(result_label, row, col)
 
-    # Create a scroll area for the results
+    # Add results to a scroll area
     scroll_area = QScrollArea()
     scroll_area.setWidgetResizable(True)
     scroll_area.setWidget(results_container)
-    main_layout.addWidget(scroll_area)  # Add scrollable results inside the main container
+    main_layout.addWidget(scroll_area)
 
-    # ------------------------
-    # **Bottom Bar (Back Button, Save Button, and Permit Count)**
-    bottom_bar = QWidget()
-    bottom_bar_layout = QHBoxLayout(bottom_bar)
+    # Only show pagination controls if there's more than one page
+    if self.manual_total_pages > 1:
+        # Pagination controls
+        pagination_bar = QWidget()
+        pagination_layout = QHBoxLayout(pagination_bar)
+        pagination_layout.setContentsMargins(0, 10, 0, 10)
 
-    # Add Permit Count Label (only if not all three fields are filled)
-    if filled_fields != 3:
-        permit_count_label = QLabel(f"Permits: {permit_count}")
-        permit_count_label.setStyleSheet("font-size: 16px; font-weight: bold; color: green;")
-        bottom_bar_layout.addWidget(permit_count_label)
+        # Add Back Button
+        back_btn = QPushButton("Back")
+        back_btn.setFixedSize(100, 40)
+        back_btn.setStyleSheet("""
+        QPushButton {
+            background-color: #005F9E;
+            color: white;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        QPushButton:hover {
+            background-color: #003366;
+        }
+        """)
+        back_btn.clicked.connect(self.show_manual_check)
+        pagination_layout.addWidget(back_btn)
+        
+        # Add Permit Count Label (only if not all three fields are filled)
+        if self.filled_fields != 3:
+            permit_count_label = QLabel(f"Permits: {self.permit_count}")
+            permit_count_label.setStyleSheet("font-size: 16px; font-weight: bold; color: green;")
+            pagination_layout.addWidget(permit_count_label)
+        
+        pagination_layout.addStretch()
 
-    # Add Back Button (centered)
-    bottom_bar_layout.addStretch()
-    back_btn = QPushButton("Back")
-    back_btn.setFixedSize(100, 40)
-    back_btn.setStyleSheet("""
-    QPushButton {
-        background-color: #005F9E;
-        color: white;
-        border-radius: 5px;
-        font-size: 16px;
-    }
-    QPushButton:hover {
-        background-color: #003366;
-    }
-    """)
+        # Add First Page Button
+        first_button = QPushButton("First")
+        first_button.setEnabled(self.manual_current_page > 1)
+        first_button.clicked.connect(lambda: self.set_manual_page(1))
+        first_button.setFixedSize(80, 30)
+        first_button.setStyleSheet("""
+            QPushButton {
+                font-size: 12px;
+                background-color: #005F9E;
+                color: white;
+                border-radius: 5px;
+                padding: 5px;
+            }
+            QPushButton:hover {
+                background-color: #003366;
+            }
+            QPushButton:disabled {
+                background-color: #cccccc;
+                color: #666666;
+            }
+        """)
+        pagination_layout.addWidget(first_button)
 
-    back_btn.clicked.connect(self.show_manual_check)
-    bottom_bar_layout.addWidget(back_btn)
-    bottom_bar_layout.addStretch()
+        # Calculate page range to display (max 10 pages)
+        max_pages_to_show = 10
+        half_range = max_pages_to_show // 2
+        start_page = max(1, self.manual_current_page - half_range)
+        end_page = min(self.manual_total_pages, start_page + max_pages_to_show - 1)
+        
+        # Adjust if we're at the end
+        if end_page - start_page + 1 < max_pages_to_show:
+            start_page = max(1, end_page - max_pages_to_show + 1)
 
-    # Add Save Button (on the right)
-    save_btn = QPushButton("Save")
-    save_btn.setFixedSize(100, 40)
-    save_btn.setStyleSheet("""
-    QPushButton {
-        background-color: #005F9E;
-        color: white;
-        border-radius: 5px;
-        font-size: 16px;
-    }
-    QPushButton:hover {
-        background-color: #003366;
-    }
-    """)
+        # Add page number buttons
+        for page in range(start_page, end_page + 1):
+            page_button = QPushButton(str(page))
+            page_button.setFixedSize(30, 30)
+            if page == self.manual_current_page:
+                page_button.setStyleSheet("""
+                    QPushButton {
+                        font-size: 12px;
+                        font-weight: bold;
+                        background-color: #003366;
+                        color: white;
+                        border-radius: 5px;
+                        padding: 5px;
+                    }
+                """)
+            else:
+                page_button.setStyleSheet("""
+                    QPushButton {
+                        font-size: 12px;
+                        background-color: #005F9E;
+                        color: white;
+                        border-radius: 5px;
+                        padding: 5px;
+                    }
+                    QPushButton:hover {
+                        background-color: #003366;
+                    }
+                """)
+            page_button.clicked.connect(lambda _, p=page: self.set_manual_page(p))
+            pagination_layout.addWidget(page_button)
 
-    save_btn.clicked.connect(self.save_manual_check_results)  # Connect to the save function
-    bottom_bar_layout.addWidget(save_btn)
+        # Add page input controls if there are more pages than we're showing
+        if end_page < self.manual_total_pages:
+            # Add page input label
+            page_input_label = QLabel("Pg #")
+            page_input_label.setStyleSheet("font-size: 12px; color: black;")
+            pagination_layout.addWidget(page_input_label)
+            
+            # Add page number input
+            self.manual_page_input = QLineEdit()
+            self.manual_page_input.setFixedSize(50, 30)
+            self.manual_page_input.setStyleSheet("""
+                QLineEdit {
+                    font-size: 12px;
+                    border: 1px solid #005F9E;
+                    border-radius: 5px;
+                    padding: 5px;
+                }
+            """)
+            self.manual_page_input.setValidator(QIntValidator(1, self.manual_total_pages))
+            self.manual_page_input.returnPressed.connect(
+                lambda: self.on_manual_page_input()
+            )
+            pagination_layout.addWidget(self.manual_page_input)
+            
+            # Add Go button
+            go_button = QPushButton("Go")
+            go_button.setFixedSize(50, 30)
+            go_button.clicked.connect(lambda: self.on_manual_page_input())
+            go_button.setStyleSheet("""
+                QPushButton {
+                    font-size: 12px;
+                    background-color: #005F9E;
+                    color: white;
+                    border-radius: 5px;
+                    padding: 5px;
+                }
+                QPushButton:hover {
+                    background-color: #003366;
+                }
+            """)
+            pagination_layout.addWidget(go_button)
 
-    main_layout.addWidget(bottom_bar)  # Add bottom bar inside the main container
+        # Add Last Page Button
+        last_button = QPushButton("Last")
+        last_button.setEnabled(self.manual_current_page < self.manual_total_pages)
+        last_button.clicked.connect(lambda: self.set_manual_page(self.manual_total_pages))
+        last_button.setFixedSize(80, 30)
+        last_button.setStyleSheet("""
+            QPushButton {
+                font-size: 12px;
+                background-color: #005F9E;
+                color: white;
+                border-radius: 5px;
+                padding: 5px;
+            }
+            QPushButton:hover {
+                background-color: #003366;
+            }
+            QPushButton:disabled {
+                background-color: #cccccc;
+                color: #666666;
+            }
+        """)
+        pagination_layout.addWidget(last_button)
 
-    # ------------------------
-    # **Set Main Container in the Layout**
+        pagination_layout.addStretch()
+
+        # Add Save Page Button
+        save_page_btn = QPushButton("Save Page")
+        save_page_btn.setFixedSize(100, 40)
+        save_page_btn.setStyleSheet("""
+        QPushButton {
+            background-color: #005F9E;
+            color: white;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        QPushButton:hover {
+            background-color: #003366;
+        }
+        """)
+        save_page_btn.clicked.connect(lambda: self.save_manual_check_page_results())
+        pagination_layout.addWidget(save_page_btn)
+
+        # Add Save Button (on the right)
+        save_btn = QPushButton("Save All")
+        save_btn.setFixedSize(100, 40)
+        save_btn.setStyleSheet("""
+        QPushButton {
+            background-color: #005F9E;
+            color: white;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        QPushButton:hover {
+            background-color: #003366;
+        }
+        """)
+        save_btn.clicked.connect(lambda: self.save_manual_check_results())
+        
+        pagination_layout.addWidget(save_btn)
+        
+        main_layout.addWidget(pagination_bar)
+    else:
+        # Only show back and save buttons when there's only one page
+        bottom_bar = QWidget()
+        bottom_layout = QHBoxLayout(bottom_bar)
+        bottom_layout.setContentsMargins(0, 10, 0, 10)
+        
+        # Add Back Button
+        back_btn = QPushButton("Back")
+        back_btn.setFixedSize(100, 40)
+        back_btn.setStyleSheet("""
+        QPushButton {
+            background-color: #005F9E;
+            color: white;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        QPushButton:hover {
+            background-color: #003366;
+        }
+        """)
+        back_btn.clicked.connect(self.show_manual_check)
+        bottom_layout.addWidget(back_btn)
+        
+        # Add Permit Count Label (only if not all three fields are filled)
+        if self.filled_fields != 3:
+            permit_count_label = QLabel(f"Permits: {self.permit_count}")
+            permit_count_label.setStyleSheet("font-size: 16px; font-weight: bold; color: green;")
+            bottom_layout.addWidget(permit_count_label)
+        
+        bottom_layout.addStretch()
+        
+        # Add Save Button
+        save_btn = QPushButton("Save All")
+        save_btn.setFixedSize(100, 40)
+        save_btn.setStyleSheet("""
+        QPushButton {
+            background-color: #005F9E;
+            color: white;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        QPushButton:hover {
+            background-color: #003366;
+        }
+        """)
+        save_btn.clicked.connect(lambda: self.save_manual_check_results())
+        bottom_layout.addWidget(save_btn)
+        
+        main_layout.addWidget(bottom_bar)
+
+    # Add the main container to the results layout
     self.results_layout.addWidget(main_container)
 
     # Show the scrollable area
     self.scroll_area.show()
 
-    
+    # Log the end time for rendering
+    rendering_end_time = time.time()
+    print(f"Rendering finished at: {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(rendering_end_time))}")
+    print(f"Rendering duration: {rendering_end_time - rendering_start_time:.2f} seconds")
+
+def set_manual_page(self, page):
+    """
+    Sets the current page to the specified page number and refreshes the view.
+    """
+    self.manual_current_page = page
+    manual_render_results_page(self)
+
+def on_manual_page_input(self):
+    """Handle manual page number input"""
+    try:
+        page = int(self.manual_page_input.text())
+        if 1 <= page <= self.manual_total_pages:
+            self.set_manual_page(page)
+    except ValueError:
+        QMessageBox.warning(self, "Invalid Input", "Please enter a valid page number")
+
+
 def populate_manual_check_fields(app, abac_path):
     """
     Populates the completer fields for user, resource, and action inputs based on the selected ABAC file.
@@ -466,12 +683,26 @@ def save_manual_check_results(app):
         QMessageBox.warning(app, "Warning", "No results to save.")
         return
 
-    # Collect the results from the scroll area
-    scroll_area_widget = app.results_layout.itemAt(0).widget().layout().itemAt(1).widget().widget()
-    scroll_area_layout = scroll_area_widget.layout()
-    results = []
+    # Get the main container widget from the results layout
+    main_container = app.results_layout.itemAt(0).widget()
+    if not main_container:
+        QMessageBox.warning(app, "Warning", "No results to save.")
+        return
 
-    # Traverse the layout and collect QLabel text
+    # Get the scroll area from the main container
+    scroll_area = main_container.findChild(QScrollArea)
+    if not scroll_area:
+        QMessageBox.warning(app, "Warning", "No results to save.")
+        return
+
+    # Get the results container from the scroll area
+    results_container = scroll_area.widget()
+    if not results_container:
+        QMessageBox.warning(app, "Warning", "No results to save.")
+        return
+
+    # Collect the results from the results container
+    results = []
     def collect_labels(layout):
         for i in range(layout.count()):
             item = layout.itemAt(i)
@@ -479,17 +710,12 @@ def save_manual_check_results(app):
                 widget = item.widget()
                 if isinstance(widget, QLabel):
                     results.append(strip_html_tags(widget.text()))
-                else:
-                    # Recursively check child layouts
-                    if widget.layout():
-                        collect_labels(widget.layout())
+                elif widget.layout():
+                    collect_labels(widget.layout())
             elif item.layout():
                 collect_labels(item.layout())
 
-    collect_labels(scroll_area_layout)
-
-    # Debug: Print the results to verify
-    print("Results to save:", results)  # Add this line for debugging
+    collect_labels(results_container.layout())
 
     # Get the ABAC file name from the current_manual_abac path
     if hasattr(app, 'current_manual_abac') and app.current_manual_abac:
@@ -508,5 +734,79 @@ def save_manual_check_results(app):
             with open(save_path, 'w') as file:
                 file.write(results_with_name)  # Write the modified text
             QMessageBox.information(app, "Success", "Results saved successfully.")
+        except Exception as e:
+            QMessageBox.warning(app, "Error", f"Failed to save results: {str(e)}")
+
+def save_manual_check_page_results(app):
+    """
+    Saves only the current page of manual check results to a .txt file.
+    Includes the ABAC file name and page number in the filename.
+    """
+    # Ensure there are results to save
+    if not hasattr(app, 'results_layout') or app.results_layout.count() == 0:
+        QMessageBox.warning(app, "Warning", "No results to save.")
+        return
+
+    # Get the main container widget from the results layout
+    main_container = app.results_layout.itemAt(0).widget()
+    if not main_container:
+        QMessageBox.warning(app, "Warning", "No results to save.")
+        return
+
+    # Get the scroll area from the main container
+    scroll_area = main_container.findChild(QScrollArea)
+    if not scroll_area:
+        QMessageBox.warning(app, "Warning", "No results to save.")
+        return
+
+    # Get the results container from the scroll area
+    results_container = scroll_area.widget()
+    if not results_container:
+        QMessageBox.warning(app, "Warning", "No results to save.")
+        return
+
+    # Collect the results from the results container
+    results = []
+    def collect_labels(layout):
+        for i in range(layout.count()):
+            item = layout.itemAt(i)
+            if item.widget():
+                widget = item.widget()
+                if isinstance(widget, QLabel):
+                    results.append(strip_html_tags(widget.text()))
+                elif widget.layout():
+                    collect_labels(widget.layout())
+            elif item.layout():
+                collect_labels(item.layout())
+
+    collect_labels(results_container.layout())
+
+    # Get the ABAC file name from the current_manual_abac path
+    if hasattr(app, 'current_manual_abac') and app.current_manual_abac:
+        abac_name = os.path.basename(app.current_manual_abac)
+    else:
+        abac_name = "Unknown_ABAC_File"
+
+    # Create default filename with ABAC name and page number
+    default_filename = f"{abac_name}_page_{app.manual_current_page}.txt"
+
+    # Save the results to a .txt file
+    options = QFileDialog.Options()
+    save_path, _ = QFileDialog.getSaveFileName(
+        app, 
+        "Save Current Page Results", 
+        default_filename,  # Default filename
+        "Text Files (*.txt);;All Files (*)", 
+        options=options
+    )
+    
+    if save_path:
+        try:
+            with open(save_path, 'w') as file:
+                # Write header with ABAC file and page info
+                file.write(f"ABAC File: {abac_name}\n")
+                file.write(f"Page: {app.manual_current_page} of {app.manual_total_pages}\n\n")
+                file.write("\n".join(results))
+            QMessageBox.information(app, "Success", "Current page results saved successfully.")
         except Exception as e:
             QMessageBox.warning(app, "Error", f"Failed to save results: {str(e)}")

@@ -3,9 +3,6 @@
 # Change directory to the script's location
 cd "$(dirname "$0")"
 
-# Remove macOS quarantine attributes (fix "Operation not permitted" error)
-xattr -d com.apple.quarantine "$0" 2>/dev/null
-xattr -r -d com.apple.quarantine "$(pwd)/.." 2>/dev/null
 
 # Ensure the script is executable
 chmod +x "$0"

@@ -5,7 +5,7 @@ import webbrowser # Python’s standard library, it doesn't need to be added to 
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
     QFileDialog, QAction, QMessageBox, QStackedWidget, QLabel, QToolBar,
-    QSizePolicy, QScrollArea, QComboBox, QGridLayout, QListWidget, QListWidgetItem, QSpacerItem, QLineEdit, QToolButton, QSizePolicy, QFrame, QLayout,
+    QSizePolicy, QScrollArea, QComboBox, QGridLayout, QListWidget, QListWidgetItem, QSpacerItem, QLineEdit, QToolButton, QSizePolicy, QFrame, QLayout, QProgressDialog
 )
 from PyQt5.QtGui import QIcon, QPixmap, QIntValidator, QFontMetrics, QDesktopServices
 from PyQt5.QtCore import Qt, QSize, QUrl
@@ -19,11 +19,16 @@ from features.analysis.permissions.access_perms import (
     update_displayed_results, save_permissions_to_file, compute_abac_stats,
     update_sorted_permissions
 )
-from features.analysis.bar_graph import show_bar_graph
-from features.analysis.permissions.manual_perms import show_manual_check, save_manual_check_results
-from features.analysis.heatmap import show_heatmap
-from features.analysis.abac_stats import show_stats, save_abac_stats
-from features.analysis.permissions.rule_perms import on_permstats_file_dropdown_changed, show_rulevu, show_permstats
+from features.analysis.bar_graph import show_bar_graph, initialize_bar_graph_cache, precompute_bar_graphs
+from features.analysis.permissions.manual_perms import show_manual_check, save_manual_check_results, save_manual_check_page_results, set_manual_page, on_manual_page_input
+from features.analysis.heatmap import show_heatmap, precompute_heatmaps
+from features.analysis.abac_stats import show_stats, save_abac_stats, precompute_all_stats
+from features.analysis.permissions.rule_perms import on_permstats_file_dropdown_changed, show_rulevu, show_permstats, initialize_permstats_cache, precompute_permstats
+
+def resource_path(relative_path):
+    """ Get absolute path to resource, works for dev and for PyInstaller. """
+    base_path = getattr(sys, '_MEIPASS', os.path.abspath("."))
+    return os.path.join(base_path, relative_path)
 
 
 class DragDropUpload(QWidget):
@@ -47,10 +52,11 @@ class DragDropUpload(QWidget):
         self.label.setAlignment(Qt.AlignCenter)
         self.label.setWordWrap(True)
         self.label.setStyleSheet("color: black;")
+        image_path = resource_path("res/upload_b.png")
         self.label.setText(
-            """
+            f"""
             <div style="text-align: center;">
-                <img src='res/upload_b.png' width='50' height='50'><br>
+                <img src='{image_path}' width='50' height='50'><br>
                 <span style="font-size: 24px;">Upload File</span><br>
                 <span style="font-size: 16px;">Click to browse or drag & drop files here</span>
             </div>
@@ -97,8 +103,11 @@ class MyApp(QMainWindow):
         self.abac_data = {}
         self.uploaded_files = []
         self.permissions_results = {}
+        self.heatmap_cache = {}
         self.current_abac_path = None
         self.current_manual_abac = None   # <-- Initialize here
+        initialize_bar_graph_cache(self)
+        initialize_permstats_cache(self)  # Initialize cache
         self.initUI()
 
     def open_bug_form(self):
@@ -525,14 +534,17 @@ class MyApp(QMainWindow):
         self.page4_current_uploaded_files.setFixedSize(200, 40)
         self.page4_grid_layout.addWidget(self.page4_current_uploaded_files, 4, 0, alignment=Qt.AlignCenter)
         
-        # Create horizontal box to hold the number text edit and the enter button
-        self.log_numbers_hlayout = QHBoxLayout()
-        
-        # Add text edit that only accepts numbers
+        self.page4_inputs_vlayout = QVBoxLayout()
+
+        # Number of entries
+        self.page4_integer_label = QLabel("Number of entries (Required):")
+        self.page4_integer_label.setStyleSheet("font-size: 15px; color: black;")
+        self.page4_inputs_vlayout.addWidget(self.page4_integer_label, alignment=Qt.AlignCenter)
         self.page4_integer_text_edit = QLineEdit(self)
         self.page4_integer_text_edit.setFixedSize(200, 20)
         self.page4_integer_text_edit.setValidator(QIntValidator())
-        self.page4_integer_text_edit.setPlaceholderText("Number of entries (Required)")
+        self.page4_integer_text_edit.setPlaceholderText("e.g. 1000")
+        self.page4_integer_text_edit.setToolTip("Enter the number of total entries. This field is required.")
         self.page4_integer_text_edit.setStyleSheet("""
             QLineEdit {
                 background-color: white;
@@ -543,12 +555,21 @@ class MyApp(QMainWindow):
                 color: gray;            
             }                                       
         """)
-        self.log_numbers_hlayout.addWidget(self.page4_integer_text_edit, alignment=Qt.AlignCenter)
+        self.page4_inputs_vlayout.addWidget(self.page4_integer_text_edit, alignment=Qt.AlignCenter)
+
+        spacer = QWidget()
+        spacer.setFixedHeight(10)
+        self.page4_inputs_vlayout.addWidget(spacer)
         
+        # Percentage of permits
+        self.page4_percentage_label = QLabel("Percentage of permits (Optional):")
+        self.page4_percentage_label.setStyleSheet("font-size: 15px; color: black;")
+        self.page4_inputs_vlayout.addWidget(self.page4_percentage_label, alignment=Qt.AlignCenter)
         self.page4_percentage_text_edit = QLineEdit(self)
         self.page4_percentage_text_edit.setFixedSize(200, 20)
         self.page4_percentage_text_edit.setValidator(QIntValidator())
-        self.page4_percentage_text_edit.setPlaceholderText("Percentage of allows (Optional)")
+        self.page4_percentage_text_edit.setPlaceholderText("e.g. 70")
+        self.page4_percentage_text_edit.setToolTip("Enter the percentage of permits. This field is optional.")
         self.page4_percentage_text_edit.setStyleSheet("""
             QLineEdit {
                 background-color: white;
@@ -559,12 +580,56 @@ class MyApp(QMainWindow):
                 color: gray;            
             }                                       
         """)
-        self.log_numbers_hlayout.addWidget(self.page4_percentage_text_edit, alignment=Qt.AlignCenter)
-        log_numbers_widget = QWidget()
-        log_numbers_widget.setLayout(self.log_numbers_hlayout)
-        
-        self.page4_grid_layout.addWidget(log_numbers_widget, 5, 0, alignment=Qt.AlignCenter)
-        
+        self.page4_inputs_vlayout.addWidget(self.page4_percentage_text_edit, alignment=Qt.AlignCenter)
+
+        # Percentage of over permits
+        self.page4_over_percentage_label = QLabel("Percentage of over permits (Optional):")
+        self.page4_over_percentage_label.setStyleSheet("font-size: 15px; color: black;")
+        self.page4_inputs_vlayout.addWidget(self.page4_over_percentage_label, alignment=Qt.AlignCenter)
+        self.page4_over_percentage_text_edit = QLineEdit(self)
+        self.page4_over_percentage_text_edit.setFixedSize(200, 20)
+        self.page4_over_percentage_text_edit.setValidator(QIntValidator())
+        self.page4_over_percentage_text_edit.setPlaceholderText("e.g. 5")
+        self.page4_over_percentage_text_edit.setToolTip("Enter the percentage of over permits. This field is optional.")
+        self.page4_over_percentage_text_edit.setStyleSheet("""
+            QLineEdit {
+                background-color: white;
+                color: black;
+                border: 1px solid black; 
+            }
+            QLineEdit::placeholder {
+                color: gray;            
+            }  
+        """)
+        self.page4_inputs_vlayout.addWidget(self.page4_over_percentage_text_edit, alignment=Qt.AlignCenter)
+
+        # Percentage of under permits
+        self.page4_under_percentage_label = QLabel("Percentage of under permits (Optional):")
+        self.page4_under_percentage_label.setStyleSheet("font-size: 15px; color: black;")
+        self.page4_inputs_vlayout.addWidget(self.page4_under_percentage_label, alignment=Qt.AlignCenter)
+        self.page4_under_percentage_text_edit = QLineEdit(self)
+        self.page4_under_percentage_text_edit.setFixedSize(200, 20)
+        self.page4_under_percentage_text_edit.setValidator(QIntValidator())
+        self.page4_under_percentage_text_edit.setPlaceholderText("e.g. 5")
+        self.page4_under_percentage_text_edit.setToolTip("Enter the percentage of under permits. This field is optional.")
+        self.page4_under_percentage_text_edit.setStyleSheet("""
+            QLineEdit {
+                background-color: white;
+                color: black;
+                border: 1px solid black; 
+            }
+            QLineEdit::placeholder {
+                color: gray;            
+            }  
+        """)
+        self.page4_inputs_vlayout.addWidget(self.page4_under_percentage_text_edit, alignment=Qt.AlignCenter)
+
+        # Widget to hold the vertical layout
+        page4_inputs_widget = QWidget()
+        page4_inputs_widget.setLayout(self.page4_inputs_vlayout)
+        self.page4_grid_layout.addWidget(page4_inputs_widget, 5, 0, alignment=Qt.AlignCenter)
+        # --- End: Stack text edits vertically with labels ---
+
         # Add button to submit numbers
         self.page4_submit_btn = QPushButton("Submit", self)
         self.page4_submit_btn.clicked.connect(lambda: generate_logs(self))
@@ -599,7 +664,7 @@ class MyApp(QMainWindow):
 
         # Thumbnail image
         demo_image = QLabel()
-        demo_image.setPixmap(QPixmap("res/demo_thumbnail.png").scaled(600, 350, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+        demo_image.setPixmap(QPixmap(resource_path("res/demo_thumbnail.png")).scaled(600, 350, Qt.KeepAspectRatio, Qt.SmoothTransformation))
         demo_image.setAlignment(Qt.AlignCenter)
         demo_image.setStyleSheet("border: none;")
 
@@ -705,9 +770,8 @@ class MyApp(QMainWindow):
         faq_scroll.setWidget(faq_widget)
         self.page6_layout.addWidget(faq_scroll)
 
-        # Bottom Row with Bug Report and Version Info
+        # Bottom Row with Bug Report, Publication Link, and Version Info
         bottom_row = QHBoxLayout()
-        bottom_row.setContentsMargins(40, 20, 40, 20)
 
         # Left: Bug and Contact Info
         bug_contact_layout = QVBoxLayout()
@@ -736,7 +800,7 @@ class MyApp(QMainWindow):
 
         email_layout = QHBoxLayout()
         contact_icon = QLabel()
-        contact_icon.setPixmap(QPixmap("res/email_icon.png").scaled(24, 24, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+        contact_icon.setPixmap(QPixmap(resource_path("res/email_icon.png")).scaled(24, 24, Qt.KeepAspectRatio, Qt.SmoothTransformation))
         contact_icon.setFixedSize(24, 24)
 
         contact_email = QLabel('<a href="mailto:abaclab.research@gmail.com">abaclab.research@gmail.com</a>')
@@ -757,6 +821,20 @@ class MyApp(QMainWindow):
         bug_contact_layout.addWidget(contact_label)
         bug_contact_layout.addLayout(email_layout)
 
+        # Center: Publication Link
+        publication_layout = QVBoxLayout()
+        publication_layout.setAlignment(Qt.AlignCenter | Qt.AlignBottom)
+
+        publication_label = QLabel('<a href="https://arxiv.org/abs/2505.08209">Access the ABAC Lab Research Publication</a>')
+        publication_label.setOpenExternalLinks(True)
+        publication_label.setStyleSheet("""
+            font-size: 18px;
+            color: #003366;
+            font-weight: bold;
+        """)
+        publication_label.setAlignment(Qt.AlignCenter)
+        publication_layout.addWidget(publication_label)
+
         # Right: Version Box
         version_layout = QVBoxLayout()
         version_layout.setAlignment(Qt.AlignRight | Qt.AlignBottom)
@@ -770,7 +848,7 @@ class MyApp(QMainWindow):
             padding: 7px;
         """)
         version_icon = QLabel()
-        version_icon.setPixmap(QPixmap("res/abac_w.png").scaled(60, 60, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+        version_icon.setPixmap(QPixmap(resource_path("res/abac_w.png")).scaled(60, 60, Qt.KeepAspectRatio, Qt.SmoothTransformation))
         version_label = QLabel("ABAC Lab v1.0")
         version_label.setStyleSheet("font-size: 19px; font-weight: bold; color: white; margin-left: 12px;")
 
@@ -790,11 +868,12 @@ class MyApp(QMainWindow):
         version_layout.addWidget(version_box)
         version_layout.addWidget(credits_label)
 
-        # Add both sections to the bottom row
+        # Add all layouts to the bottom row
         bottom_row.addLayout(bug_contact_layout)
         bottom_row.addStretch(1)
+        bottom_row.addLayout(publication_layout)
+        bottom_row.addStretch(1)
         bottom_row.addLayout(version_layout)
-
         self.page6_layout.addLayout(bottom_row)
 
 
@@ -847,15 +926,45 @@ class MyApp(QMainWindow):
 
     def handle_file_upload(self, file_path):
         try:
+            # Create a single progress dialog for this file's processing
+            progress = QProgressDialog(f"Processing {os.path.basename(file_path)}...", None, 0, 100, self)
+            progress.setWindowTitle("Loading File")
+            progress.setWindowModality(Qt.WindowModal)
+            progress.setCancelButton(None)  # Remove cancel button (optional)
+            progress.show()
+            QApplication.processEvents()
+
+            # Step 1: Parse ABAC file (20%)
+            progress.setValue(20)
             new_user_mgr, new_res_mgr, new_rule_mgr = parse_abac_file(file_path)
+            
+            # Store parsed data
             self.abac_data[file_path] = (new_user_mgr, new_res_mgr, new_rule_mgr)
             if file_path not in self.uploaded_files:
                 self.uploaded_files.append(file_path)
                 self.add_file_to_list(file_path)
-            self.clear_files_button.show()
 
+            # Step 2: Precompute stats (40%)
+            progress.setValue(40)
+            precompute_all_stats(self)
+            
+            # Step 3: Precompute bar graphs (60%)
+            progress.setValue(60)
+            precompute_bar_graphs(self)
+            
+            # Step 4: Precompute heatmaps (80%)
+            progress.setValue(80)
+            precompute_heatmaps(self)
+            
+            # Step 5: Precompute permission stats (100%)
+            progress.setValue(100)
+            precompute_permstats(self)
+
+            self.clear_files_button.show()
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to parse ABAC file:\n{str(e)}")
+        finally:
+            progress.close()  # Ensure dialog closes even on error
 
     def add_file_to_list(self, file_path):
         file_name = os.path.basename(file_path)
@@ -899,6 +1008,16 @@ class MyApp(QMainWindow):
         if file_path in self.uploaded_files:
             self.uploaded_files.remove(file_path)
             del self.abac_data[file_path]
+            # Remove precomputed stats
+            if hasattr(self, 'abac_stats') and file_path in self.abac_stats:
+                del self.abac_stats[file_path]
+            # Remove cached bar graph data
+            if hasattr(self, 'bar_graph_cache') and file_path in self.bar_graph_cache:
+                del self.bar_graph_cache[file_path]
+            if hasattr(self, 'heatmap_cache') and file_path in self.heatmap_cache:
+                del self.heatmap_cache[file_path]
+            if hasattr(self, 'permstats_cache') and file_path in self.permstats_cache:
+                del self.permstats_cache[file_path]
             # Remove widget from the layout
             row = self.file_list_widget.row(item)
             self.file_list_widget.takeItem(row)
@@ -921,7 +1040,7 @@ class MyApp(QMainWindow):
         abac_label.setStyleSheet("font-size: 32px; color: white;")
         title_layout.addWidget(abac_label)
         icon_label = QLabel()
-        icon_label.setPixmap(QPixmap("res/abac_w.png").scaled(75, 75, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+        icon_label.setPixmap(QPixmap(resource_path("res/abac_w.png")).scaled(75, 75, Qt.KeepAspectRatio, Qt.SmoothTransformation))
         title_layout.addWidget(icon_label)
         title_widget = QWidget()
         title_widget.setLayout(title_layout)
@@ -930,12 +1049,12 @@ class MyApp(QMainWindow):
         
 
         self.default_icons = {
-            "policy": QIcon("res/policy.png"),
-            "analysis": QIcon("res/analysis.png"),
-            "convert": QIcon("res/convert.png"),
-            "log": QIcon("res/log.png"),
-            "demo": QIcon("res/demo.png"),
-            "help": QIcon("res/help.png"),
+            "policy": QIcon(resource_path("res/policy.png")),
+            "analysis": QIcon(resource_path("res/analysis.png")),
+            "convert": QIcon(resource_path("res/convert.png")),
+            "log": QIcon(resource_path("res/log.png")),
+            "demo": QIcon(resource_path("res/demo.png")),
+            "help": QIcon(resource_path("res/help.png")),
         }
 
         self.toolbar_actions = {
@@ -948,12 +1067,12 @@ class MyApp(QMainWindow):
         }
 
         self.active_icons = {
-            "policy": QIcon("res/policy_active.png"),
-            "analysis": QIcon("res/analysis_active.png"),
-            "convert": QIcon("res/convert_active.png"),
-            "log": QIcon("res/log_active.png"),
-            "demo": QIcon("res/demo_active.png"),
-            "help": QIcon("res/help_active.png"),
+            "policy": QIcon(resource_path("res/policy_active.png")),
+            "analysis": QIcon(resource_path("res/analysis_active.png")),
+            "convert": QIcon(resource_path("res/convert_active.png")),
+            "log": QIcon(resource_path("res/log_active.png")),
+            "demo": QIcon(resource_path("res/demo_active.png")),
+            "help": QIcon(resource_path("res/help_active.png")),
         }
 
         # Connect top section buttons to switch_page function
@@ -1129,6 +1248,12 @@ class MyApp(QMainWindow):
     def save_manual_check_results(self):
         save_manual_check_results(self)
 
+    def save_manual_check_page_results(self):
+        save_manual_check_page_results(self)
+
+    def set_manual_page(self, page):
+        set_manual_page(self, page)
+
     def show_bar_graph(self):
         show_bar_graph(self)
 
@@ -1162,6 +1287,9 @@ class MyApp(QMainWindow):
 
     def show_rulevu(self):
         show_rulevu(self)
+
+    def on_manual_page_input(self):
+        on_manual_page_input(self)
 
     def show_rule_choices(self):
         self.stats_widget.hide()
