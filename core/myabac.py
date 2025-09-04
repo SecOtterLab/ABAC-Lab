@@ -63,7 +63,10 @@ def process_request(request, user_mgr, res_mgr, rule_mgr):
 
     return "Deny"
 
+
 def generate_heatmap_data(user_mgr, res_mgr, rule_mgr):
+
+    #Take this function to create the ACL list
     """
     Perform rule analysis and produce a heatmap  
 
