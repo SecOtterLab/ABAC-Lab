@@ -1,0 +1,14 @@
+#EXPECTED TEXT FILE
+
+#Max Iterations
+
+5
+
+#API To run
+
+gemini_api
+
+#Name of organization (ground truth acl, ground truth ABAC rules, attribute data description, attribute data)
+
+healthcare(llm-research/ground-truth-ACL/healthcare-gt-ACL.txt; llm-research/empty.txt; DATASETS-for-LLM/healthcare/healthcare-attribute-data-description.txt; DATASETS-for-LLM/healthcare/healthcare-attribute-data.txt; output-data/healthcare )
+

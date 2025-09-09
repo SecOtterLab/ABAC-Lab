@@ -1,10 +1,8 @@
 #Functions to assist in the llm-research folder .py files
 #includes but is not limmited to files to open text files
 # combine text files
-
 import os, sys
-from acl_analyzer import compare_acl
-from acl_generator import generate_acl
+from acl_tools import compare_acl, generate_acl
 from myabac import parse_abac_file
 
 
@@ -16,14 +14,11 @@ def write_to_file(filename, lines):
     
     return
 
-
-
 def clear_file(filename):
     with open(filename,"w", encoding="utf-8"):
         pass
 
     return
-
 
 def read_entire_file(filename):
     
@@ -71,8 +66,6 @@ def prepend_text_to_file(filename, text):
 
     return
     
-
-
 def append_from_file(dest_file, src_file):
     with open(src_file, "r", encoding="utf-8") as src:
         content = src.read()
@@ -92,7 +85,6 @@ def prepend_file(dest_file, src_file):
 
     return
 
-    
 def prompt_generator(gt_acl_file, attribute_data_file, attribute_data_description_file,prompt_file, complete_request_file , comparison_file ):
    
     # read inputs
@@ -151,10 +143,15 @@ def clear_text_files(folder_path):
 
 
 
-def looper(gt_acl_file, attribute_data_file, attribute_data_description_file, prompt_file, complete_request_file , comparison_file,  api_call, max_num_it):
-        
-    prompt_generator(gt_acl_file, attribute_data_file, attribute_data_description_file, prompt_file, complete_request_file , comparison_file )
+def looper(gt_acl_file, attribute_data_file, attribute_data_description_file,  api_call, max_num_it):
+    # generated file #: declare the location on the complete request being made
+    # this file should contain everyhting we are feeding the LLM to make the rules.
+    complete_request_file = "llm-research/complete-prompt.txt"
+    prompt_file = "llm-research/engineered-prompt.txt"
+    comparison_file ="llm-research/empty.txt"
 
+    prompt_generator(gt_acl_file, attribute_data_file, attribute_data_description_file, prompt_file, complete_request_file , comparison_file )
+    
     print("api loop running")
 
     is_match = False
@@ -185,13 +182,10 @@ def looper(gt_acl_file, attribute_data_file, attribute_data_description_file, pr
 
     while(is_match is False and counter < max_num_it):
 
-        #make new prompt
         print("api loop running in looooop")
 
         prompt_file = ("llm-research/looped-engineered-prompt.txt")
         prompt_generator(gt_acl_file, attribute_data_file, attribute_data_description_file,prompt_file, complete_request_file , session_comparison_file )
-            
-     
 
         complete_request = read_entire_file(complete_request_file)
 
@@ -207,13 +201,12 @@ def looper(gt_acl_file, attribute_data_file, attribute_data_description_file, pr
             with open(session_llm_response_file, "w", encoding="utf-8") as of:
                 of.write(payload_text)
 
-
-            
-
         is_match = create_session_data(session_abac_file, attribute_data_file, session_llm_response_file, session_acl_file, gt_acl_file, session_comparison_file)
         write_to_logs(counter)
 
         counter +=1
+
+    return
 
 
 def create_session_data(session_abac_file, attribute_data_file, session_response, llm_acl_file, gt_acl_file, session_comparison_file):
@@ -256,7 +249,7 @@ def create_session_data(session_abac_file, attribute_data_file, session_response
 
 def write_to_logs(num_it):
 
-    divider_text = (f"===============================================================\nITERATION : {num_it}\n===============================================================\n")
+    divider_text = (f"\n===============================================================\nITERATION : {num_it}\n===============================================================\n")
     prepend_file("llm-research/session/cache/complete-prompt.cache", "llm-research/complete-prompt.txt")
     prepend_text_to_file("llm-research/session/cache/complete-prompt.cache", divider_text)
 

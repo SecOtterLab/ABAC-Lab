@@ -102,7 +102,7 @@ The following text is a request to generate ABAC rules. The text is separated in
             INPUT section:
 
             OUTPUT section: The output section describes how to format your (the LLMs) response. Including syntax, restrictions, and content. 
-
+            
             The ABAC RULES section, is section dedicated to helping you (the LLM) produce more consistent and correct abac rules. You (the LLM) are to follow these rules strictly.
 
             The VERIFICATION section: tasks for you (the LLM) to do in order to guarantee better results.
@@ -127,6 +127,7 @@ The following text is a request to generate ABAC rules. The text is separated in
                 line.startswith("rule(") and line.endswith(")")
                 line.count(";") == 3
                 The third field matches ^\{[^}]+\}$.”
+            9. DO NOT INCLUDE ANY ``` at the beginnig or end of a response
          
 
 

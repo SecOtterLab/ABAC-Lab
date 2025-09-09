@@ -1,6 +1,6 @@
 from helper_functions import clear_file, append_from_file
 from myabac import parse_abac_file
-from acl_generator import generate_acl
+from acl_tools import generate_acl
 
 
 def gt_acl_generator(attribute_data_file, gt_rules_file, output_file):
