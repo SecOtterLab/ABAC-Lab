@@ -2,30 +2,25 @@
 
 import json
 import requests
-from helper_functions import read_entire_file, prompt_generator, api_loop
+from helper_functions import read_entire_file, prompt_generator, looper
 
-def gemini_api(gt_acl_file, llm_abac_policy_file, policy_description_file, ttl):
+def gemini_api(gt_acl_file, attribute_data_file, attribute_data_description_file, max_num_it):
+
     #Parameters
         # gt_acl_file: the acl file to feed to the LLM
         # llm_abac_policy_file: file with all user and resource information
         # attribute_despolicy_description_fileription_file the description of the attributes listed above.
     
-
-
     # generated file #: declare the location on the complete request being made
     # this file should contain everyhting we are feeding the LLM to make the rules.
     complete_request_file = "llm-research/complete-prompt.txt"
+    prompt_file = "llm-research/engineered-prompt.txt"
+    comparison_file ="llm-research/empty.txt"
 
     #generate the prompt, calls a helper function to combine all the text files into one.
-    prompt_generator(gt_acl_file, llm_abac_policy_file, policy_description_file, complete_request_file)
-    
- 
+    looper(gt_acl_file, attribute_data_file, attribute_data_description_file,prompt_file, complete_request_file , comparison_file,  gemini_api_call, max_num_it)
 
-    
-    
-    #need: to pass TTL, fucniton call for the API
-
-    api_loop( gt_acl_file, llm_abac_policy_file,  gemini_api_call, ttl)
+    return
    
 
 
