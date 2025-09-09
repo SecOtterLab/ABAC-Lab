@@ -7,11 +7,14 @@ def rule_analytics(gt_rules, llm_rules):
         #conditions in each section
         #do it this way since we constantly get the sections out of order from llmss
     # get the avg jaccard sim for rule(subCond; resCond; acts; cons)
+    #how to compare subatomic
     # assign every generated rule the score
     # match the gt rule to the llm rule with the highest score
-    #repeat for every rule
+    #repeat for every gt rule
 
-    #unmatched rules?
+    #unmatched rules from the llm?
+        #mathc backwards
+        #keep track of rules with lcose to 0
 
     # Desired analytics:
         #
