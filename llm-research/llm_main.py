@@ -1,5 +1,5 @@
 from api_functions.gemini_call import gemini_api
-from helper_functions import clear_text_files
+from helper_functions import clear_text_files, write_text_to_file
 from file_manip import move_and_rename_all
 import datetime
 
@@ -32,7 +32,7 @@ def parse_config_file(file):
 
 
 def main():
-    arguement_file = "llm-research/arguements.txt"
+    arguement_file = "arguements/arguements.txt"
 
     #clear cache and session files
     clear_text_files("llm-research/session/cache")
@@ -60,19 +60,19 @@ def main():
             output_path = parts[4]
 
 
-            print(f"{max_num_it}\n{api_to_run}\n{organization}\n{gt_acl_file}\n{gt_abac_rules_file}\n{attribute_data_description_file}\n{attribute_data_file}\n{output_path}\n")
-                    # declare session files
-            # store info on the session being ran
-                # TODO: declare what info is needed 
-            session_info = "llm-research/session/session-info.txt"
+            meta_data = (f"{max_num_it}\n{api_to_run}\n{organization}\n{gt_acl_file}\n{gt_abac_rules_file}\n{attribute_data_description_file}\n{attribute_data_file}\n{output_path}\n")
+           
 
             # A call to any API should be made here
             gemini_api( gt_acl_file, attribute_data_file, attribute_data_description_file, max_num_it)
+
             #TODO: generate analytics here
             timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
 
             # Save all session files and cache files generated from the session 
             move_and_rename_all("llm-research/session", output_path , org_name, timestamp)
+            session_info = "llm-research/session/session-info.txt"
+            write_text_to_file(session_info, meta_data)
 
             clear_text_files("llm-research/session/cache")
             clear_text_files("llm-research/session")

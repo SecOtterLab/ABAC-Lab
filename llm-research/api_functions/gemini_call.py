@@ -16,7 +16,7 @@ def gemini_api(gt_acl_file, attribute_data_file, attribute_data_description_file
    
 def gemini_api_call(request_text):
 
-    key_file ="llm-research/keys/geminiKey.txt"
+    key_file ="keys/geminiKey.txt"
     
     print("\nCalling gemini API...\n")
 

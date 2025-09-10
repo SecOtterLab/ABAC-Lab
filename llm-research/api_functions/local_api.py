@@ -1,5 +1,8 @@
 import ollama
-from helper_functions import read_entire_file, clear_file, prompt_generator, file_to_text, append_to_file
+import requests
+import json
+
+# from helper_functions import read_entire_file, clear_file, prompt_generator, append_to_file
 #MAKE SURE SSH TUNNEL IS SET UP TO SECLAB@IP!!!!!!
 #IF NOT RUNNING ON SEC LAB MAC 
 
@@ -22,26 +25,11 @@ from helper_functions import read_entire_file, clear_file, prompt_generator, fil
 
 # print(response.response)
 
-def local_api_call(abac_rules_generated, acl_file, attribute_data_file, attribute_description_file):
-    #Parameters
-        #llm_abac_rules_generated: the file where you want to save the llm generated abac rules to
-        # acl_file: the acl file to feed to the LLM
-        # attribute_data_file: file with all user and resource information
-        # attribute_description_file the description of the attributes listed above.
+def local_api_call():
+   
+        # complete_request = "Give me a quick bio on Aubry 'Drake' Graham"
 
-        #clear the file to write over
-        clear_file(abac_rules_generated)
-
-        #declare the location on the complete request being made
-        complete_request_file = "llm-research/complete-prompt.txt"
-        
-        #generate the prompt
-        prompt_generator(acl_file, attribute_data_file, attribute_description_file, complete_request_file)
-        
-        #pass prompt request from a .txt file to a string obj (required for the request)
-        complete_request = read_entire_file("llm-research/complete-prompt.txt")
-
-        client = ollama.Client()
+        # client = ollama.Client()
         # Available models:
         # NAME SIZE
         # 11ama3.1:70b  - 42 GB
@@ -49,15 +37,45 @@ def local_api_call(abac_rules_generated, acl_file, attribute_data_file, attribut
         # gpt-oss:20b   - 13 GB
         # qwens:0.6b    - 522 MB  #RUNNING
 
-        model = "qwen3:0.6b" 
-        # prompt = "it is late, should i go to sleep?"
-
-        print("local api request sent...")
-        response  = client.generate(model=model, prompt=complete_request)
-
-        print("writing to file...")
-        append_to_file ("llm-research/llm-generated-data/qwen/qwen-test-file.txt", response.response)
+    
+        # print("local api request sent...")
+        # response  = client.generate(model=model, prompt=complete_request)
 
         # print("QWEN RESPONSE:")
 
         # print(response.response)
+        # return
+    model = "qwen3:0.6b"
+    prompt = "it is late, should i go to sleep?"
+    URL = "http://100.89.62.79:11434/api/generate"
+
+    payload = {
+        "model": model,
+        "prompt": prompt,
+        # optional:
+        # "stream": True,  # default True
+        # "options": {"temperature": 0.2}
+    }
+
+    with requests.post(URL, json=payload, stream=False, timeout=30) as r:
+        r.raise_for_status()
+        for line in r.iter_lines(decode_unicode=True):
+            if not line:
+                continue
+            msg = json.loads(line)
+            if "response" in msg:
+                print(msg["response"], end="")
+            if msg.get("done"):
+                break
+    print()
+
+    return
+
+
+
+def main():
+    local_api_call()
+
+if __name__ == "__main__":
+    main()
+

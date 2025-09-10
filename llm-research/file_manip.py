@@ -1,5 +1,6 @@
 import os
 import shutil
+from helper_functions import write_text_to_file
 
 def move_and_rename_all(src_dir, dest_dir, name_prefix, timestamp):
  
@@ -9,6 +10,10 @@ def move_and_rename_all(src_dir, dest_dir, name_prefix, timestamp):
     folder_name = os.path.basename(src_dir.rstrip(os.sep))
     new_folder_name = f"{name_prefix}_{timestamp}_{folder_name}"
     new_folder_path = os.path.join(dest_dir, new_folder_name)
+
+    session_info = "llm-research/session/session-info.txt"
+    write_text_to_file(session_info, new_folder_name)
+
 
     # Copy the whole directory first
     shutil.copytree(src_dir, new_folder_path)
