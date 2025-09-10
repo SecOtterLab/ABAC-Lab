@@ -71,18 +71,17 @@ RULES FORMAT DESCRIPTION
 
     - `cons` is a constraint. It is a conjunction of atomic constraints, with the
     conjuncts separated by commas. An atomic constraint is a formula of one of the following forms:
-    ```
+    
     aum > arm 
     aus [ arm
     aum ] ars
     aus = ars
-    ```
+    
     , where `aus` is a single-valued user attribute, `aum` is a multi-valued user attribute, `ars` is a single-valued resource attribute, and `arm` is a multi-valued resource attribute. Note that `>` denotes the "supseteq" (⊇) operator.
 
 
-    ```
+    
     # Comments
-    ```
     Lines starting with `#` are comments.
 
 ## PROMPT_RULES
