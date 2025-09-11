@@ -1,0 +1,64 @@
+
+===============================================================
+ITERATION : 2
+===============================================================
+rule(position [ {doctor} ]; type [ {HRitem}, HR ]; {addItem}; teams ] treatingTeam)
+rule(position [ {nurse} ]; type [ {HRitem}, HR ]; {addItem}; ward = ward)
+rule(agentFor ] patient; type [ {HRitem}, HR ]; {addNote}; )
+rule(uid = patient; type [ {HRitem} ]; {addNote}; )
+rule(specialties ] topics; type [ {HRitem} ]; {read}; )
+rule(teams ] treatingTeam; type [ {HRitem} ]; {read}; )
+rule(author = uid; type [ {HRitem} ]; {read}; )
+rule(agentFor ] patient; type [ {HRitem} ]; {read}; topics ] {note})
+rule(uid = patient; type [ {HRitem} ]; {read}; topics ] {note})
+rule(; type [ {HRitem} ]; {read}; topics ] {note})
+rule(position [ {doctor} ]; type [ {HRitem} ]; {read}; topics ] {oncology}; specialties ] {oncology})
+rule(position [ {doctor} ]; type [ {HRitem} ]; {read}; topics ] {cardiology}; specialties ] {cardiology})
+rule(position [ {nurse} ]; type [ {HRitem} ]; {read}; topics ] {nursing}; ward = ward)
+rule(position [ {doctor} ]; type [ {HRitem}, HR ]; {addItem}; teams ] {oncTeam1}; uid = anesDoc1)
+rule(position [ {doctor} ]; type [ {HRitem} ]; {read}; specialties ] {cardiology}; author = uid)
+rule(position [ {doctor} ]; type [ {HRitem} ]; {read}; specialties ] {oncology}; author = uid)
+rule(position [ {nurse} ]; type [ {HRitem} ]; {read}; author = uid)
+rule(position [ {nurse} ]; type [ {HR, HRitem} ]; {addItem}; ward = ward)
+rule(position [ {doctor} ]; type [ {HR, HRitem} ]; {addItem}; teams ] treatingTeam)
+rule(position [ {patient} ]; type [ {HR, HRitem} ]; {addNote}; ward = ward)
+rule(position [ {agent} ]; type [ {HR, HRitem} ]; {addNote}; agentFor ] patient)
+rule(position [ {doctor} ]; type [ {HRitem} ]; {read}; specialties ] topics)
+rule(position [ {doctor} ]; type [ {HRitem} ]; {read}; teams ] treatingTeam)
+rule(position [ {agent} ]; type [ {HRitem} ]; {read}; topics ] {note}; agentFor ] patient)
+rule(position [ {patient} ]; type [ {HRitem} ]; {read}; topics ] {note}; uid = patient)
+
+===============================================================
+ITERATION : 1
+===============================================================
+rule(position [ {doctor} ]; type [ {HRitem}, HR ]; {addItem}; teams ] treatingTeam)
+rule(position [ {nurse} ]; type [ {HRitem}, HR ]; {addItem}; ward = ward)
+rule(agentFor ] patient; type [ {HRitem}, HR ]; {addNote}; )
+rule(uid = patient; type [ {HRitem} ]; {addNote}; )
+rule(specialties ] topics; type [ {HRitem} ]; {read}; )
+rule(teams ] treatingTeam; type [ {HRitem} ]; {read}; )
+rule(author = uid; type [ {HRitem} ]; {read}; )
+rule(agentFor ] patient; type [ {HRitem} ]; {read}; topics ] {note})
+rule(uid = patient; type [ {HRitem} ]; {read}; topics ] {note})
+rule(; type [ {HRitem} ]; {read}; topics ] {note})
+rule(position [ {doctor} ]; type [ {HRitem} ]; {read}; topics ] {oncology}; specialties ] {oncology})
+rule(position [ {doctor} ]; type [ {HRitem} ]; {read}; topics ] {cardiology}; specialties ] {cardiology})
+rule(position [ {nurse} ]; type [ {HRitem} ]; {read}; topics ] {nursing}; ward = ward)
+rule(position [ {doctor} ]; type [ {HRitem}, HR ]; {addItem}; teams ] {oncTeam1}; uid = anesDoc1)
+
+===============================================================
+ITERATION : 0
+===============================================================
+rule(position [ {doctor}; type [ {HRitem}, HR ]; addItem; )
+rule(position [ {nurse}; type [ {HRitem}, HR ]; addItem; )
+rule(agentFor ] patient; type [ {HRitem}, HR ]; addNote; )
+rule(uid = patient; type [ {HRitem}, HR ]; addNote; )
+rule(specialties ] topics; type [ {HRitem} ]; read; )
+rule(teams ] treatingTeam; type [ {HRitem}, HR ]; addItem; )
+rule(teams ] treatingTeam; type [ {HRitem}, HR ]; read; )
+rule(ward = ward; type [ {HRitem}, HR ]; addItem; )
+rule(ward = ward; type [ {HRitem}, HR ]; read; )
+rule(author = uid; type [ {HRitem} ]; read; )
+rule(agentFor ] patient; type [ {HRitem} ]; read; )
+rule(uid = patient; type [ {HRitem} ]; read; )
+rule(topics ] {note}; type [ {HRitem} ]; read; )

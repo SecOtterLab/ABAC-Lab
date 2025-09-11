@@ -136,7 +136,7 @@ def looper(gt_acl_file, attribute_data_file, attribute_data_description_file,  a
     # generated file #: declare the location on the complete request being made
     # this file should contain everyhting we are feeding the LLM to make the rules.
     complete_request_file = "prompts/complete-prompt.txt"
-    prompt_file = "prompts/initial-prompt.txt"
+    prompt_file = "prompts/initial-starting-prompt.txt"
     comparison_file ="prompts/empty.txt"
 
     prompt_generator(gt_acl_file, attribute_data_file, attribute_data_description_file, prompt_file, complete_request_file , comparison_file )
@@ -173,7 +173,7 @@ def looper(gt_acl_file, attribute_data_file, attribute_data_description_file,  a
 
         print("api loop running in looooop")
 
-        prompt_file = ("prompts/subsequent-prompt.txt")
+        prompt_file = ("prompts/subsequent-starting-prompt.txt")
         prompt_generator(gt_acl_file, attribute_data_file, attribute_data_description_file,prompt_file, complete_request_file , session_comparison_file )
 
         complete_request = read_entire_file(complete_request_file)
