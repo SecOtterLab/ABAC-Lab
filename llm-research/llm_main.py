@@ -32,16 +32,15 @@ def parse_config_file(file):
 
 
 def main():
-    arguement_file = "arguements/arguements.txt"
+    config_file = "config/config.txt"
 
     #clear cache and session files
     clear_text_files("llm-research/session/cache")
     clear_text_files("llm-research/session")
 
    
-    with open(arguement_file, "r", encoding="utf-8") as f:
+    with open(config_file, "r", encoding="utf-8") as f:
         lines = [line.strip() for line in f if line.strip() and not line.startswith("#")]
-
 
         max_num_it = int(lines[0])
         api_to_run = lines[1]
@@ -57,22 +56,26 @@ def main():
             gt_abac_rules_file = parts[1]
             attribute_data_description_file = parts[2]
             attribute_data_file = parts[3]
-            output_path = parts[4]
+            tracebook_path = parts[4]
+            output_path = parts[5]
 
 
-            meta_data = (f"{max_num_it}\n{api_to_run}\n{organization}\n{gt_acl_file}\n{gt_abac_rules_file}\n{attribute_data_description_file}\n{attribute_data_file}\n{output_path}\n")
-           
+            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            meta_data = (f"{org_name}{timestamp}\n{max_num_it}\n{api_to_run}\n{organization}\n{gt_acl_file}\n{gt_abac_rules_file}\n{attribute_data_description_file}\n{attribute_data_file}\n{tracebook_path}\n{output_path}\n")
+
 
             # A call to any API should be made here
             gemini_api( gt_acl_file, attribute_data_file, attribute_data_description_file, max_num_it)
 
             #TODO: generate analytics here
-            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
 
             # Save all session files and cache files generated from the session 
-            move_and_rename_all("llm-research/session", output_path , org_name, timestamp)
+            
             session_info = "llm-research/session/session-info.txt"
             write_text_to_file(session_info, meta_data)
+            move_and_rename_all("llm-research/session", tracebook_path , org_name, timestamp)
+            move_and_rename_all("llm-research/session/output", output_path , org_name, timestamp)
+
 
             clear_text_files("llm-research/session/cache")
             clear_text_files("llm-research/session")

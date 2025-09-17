@@ -1,7 +1,7 @@
 ##API CALL ON GEMINI-2.0-flash
 import json
 import requests
-from helper_functions import read_entire_file, looper
+from helper_functions import read_entire_file, iterate_api_requests
 
 def gemini_api(gt_acl_file, attribute_data_file, attribute_data_description_file, max_num_it):
 
@@ -11,14 +11,14 @@ def gemini_api(gt_acl_file, attribute_data_file, attribute_data_description_file
         # attribute_despolicy_description_fileription_file the description of the attributes listed above.
 
     #generate the prompt, calls a helper function to combine all the text files into one.
-    looper(gt_acl_file, attribute_data_file, attribute_data_description_file,  gemini_api_call, max_num_it)
+    iterate_api_requests(gt_acl_file, attribute_data_file, attribute_data_description_file,  gemini_api_call, max_num_it)
     return
    
 def gemini_api_call(request_text):
 
     key_file ="keys/geminiKey.txt"
     
-    print("\nCalling gemini API...\n")
+    print("CALLLING GEMINI API..")
 
     try:
         gemini_key = read_entire_file(key_file)
